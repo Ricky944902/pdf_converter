@@ -1,0 +1,288 @@
+
+<!-- pdf_to_word_converter/frontend/index.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PDF转Word转换器</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.loli.net/css?family=Noto+Sans+SC:400,500,700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .dropzone {
+            border: 2px dashed #4a5568;
+            transition: all 0.3s ease;
+        }
+        .dropzone.active {
+            border-color: #4299e1;
+            background-color: rgba(66, 153, 225, 0.1);
+        }
+        .particles-js-canvas-el {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            width: 100%;
+            height: 100%;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="relative overflow-x-hidden">
+    <div id="particles-js" class="absolute inset-0"></div>
+    
+    <div class="container mx-auto px-4 py-12 max-w-4xl">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">PDF转Word转换器</h1>
+            <p class="text-gray-600">本地处理，无需上传，安全可靠</p>
+        </header>
+
+        <div class="bg-white rounded-xl shadow-xl overflow-hidden">
+            <!-- 文件选择区 -->
+            <div class="p-8 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">选择PDF文件</h2>
+                <div class="dropzone rounded-lg p-8 text-center cursor-pointer transition-all duration-300 hover:shadow-md" id="dropzone">
+                    <input type="file" id="fileInput" class="hidden" accept=".pdf" multiple>
+                    <div class="flex flex-col items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-blue-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <p class="text-gray-600 mb-2">拖放PDF文件到此处或点击选择</p>
+                        <p class="text-sm text-gray-500">支持多文件选择</p>
+                    </div>
+                </div>
+                <div id="fileList" class="mt-4 space-y-2 hidden">
+                    <h3 class="font-medium text-gray-700">已选文件：</h3>
+                    <ul id="selectedFiles" class="space-y-1"></ul>
+                </div>
+            </div>
+
+            <!-- 转换选项区 -->
+            <div class="p-8 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">转换选项</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-gray-700 mb-2">输出格式</label>
+                        <div class="flex space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="format" value="docx" checked class="h-4 w-4 text-blue-600">
+                                <span class="ml-2 text-gray-700">.docx (Word 2007+)</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="format" value="doc" class="h-4 w-4 text-blue-600">
+                                <span class="ml-2 text-gray-700">.doc (Word 97-2003)</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2">保留原始格式</label>
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" checked class="h-4 w-4 text-blue-600">
+                            <span class="ml-2 text-gray-700">尽可能保留原格式</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 编辑预览区 -->
+            <div class="p-8">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">编辑预览</h2>
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 min-h-64">
+                    <div id="editorToolbar" class="flex flex-wrap gap-2 mb-4 hidden">
+                        <button class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition" data-command="bold" title="加粗">
+                            <strong>B</strong>
+                        </button>
+                        <button class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition" data-command="italic" title="斜体">
+                            <em>I</em>
+                        </button>
+                        <select class="px-2 py-1 border rounded" id="fontFamily">
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="SimSun">宋体</option>
+                            <option value="Microsoft YaHei">微软雅黑</option>
+                        </select>
+                        <select class="px-2 py-1 border rounded" id="fontSize">
+                            <option value="1">小</option>
+                            <option value="3" selected>中</option>
+                            <option value="5">大</option>
+                            <option value="7">特大</option>
+                        </select>
+                    </div>
+                    <div id="previewContent" class="prose max-w-none p-4 bg-white rounded border border-gray-200 min-h-48" contenteditable="true">
+                        <p class="text-gray-500 italic">转换后将在此显示可编辑内容...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按钮区 -->
+            <div class="p-6 bg-gray-50 flex justify-between">
+                <button id="clearBtn" class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition">
+                    清空
+                </button>
+                <button id="convertBtn" class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition flex items-center disabled:opacity-50" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                    开始转换
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center text-gray-500 text-sm">
+            <p>本工具完全在浏览器中运行，您的文件不会上传到任何服务器</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/particles.js/2.0.0/particles.min.js"></script>
+    <script>
+        // 粒子效果初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            particlesJS('particles-js', {
+                particles: {
+                    number: { value: 80, density: { enable: true, value_area: 800 } },
+                    color: { value: "#3B82F6" },
+                    shape: { type: "circle" },
+                    opacity: { value: 0.5, random: true },
+                    size: { value: 3, random: true },
+                    line_linked: { enable: true, distance: 150, color: "#93C5FD", opacity: 0.4, width: 1 },
+                    move: { enable: true, speed: 2, direction: "none", random: true, straight: false, out_mode: "out" }
+                },
+                interactivity: {
+                    detect_on: "canvas",
+                    events: {
+                        onhover: { enable: true, mode: "grab" },
+                        onclick: { enable: true, mode: "push" }
+                    },
+                    modes: {
+                        grab: { distance: 140, line_linked: { opacity: 1 } },
+                        push: { particles_nb: 4 }
+                    }
+                }
+            });
+
+            // 文件选择逻辑
+            const dropzone = document.getElementById('dropzone');
+            const fileInput = document.getElementById('fileInput');
+            const fileList = document.getElementById('fileList');
+            const selectedFiles = document.getElementById('selectedFiles');
+            const convertBtn = document.getElementById('convertBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const editorToolbar = document.getElementById('editorToolbar');
+
+            // 拖放区域交互
+            dropzone.addEventListener('click', () => fileInput.click());
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                dropzone.classList.add('active');
+            }
+
+            function unhighlight() {
+                dropzone.classList.remove('active');
+            }
+
+            dropzone.addEventListener('drop', handleDrop, false);
+            fileInput.addEventListener('change', handleFiles, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                fileInput.files = dt.files;
+                handleFiles();
+            }
+
+            function handleFiles() {
+                selectedFiles.innerHTML = '';
+                const files = fileInput.files;
+                
+                if (files.length > 0) {
+                    fileList.classList.remove('hidden');
+                    convertBtn.disabled = false;
+                    
+                    Array.from(files).forEach(file => {
+                        const li = document.createElement('li');
+                        li.className = 'flex items-center text-sm';
+                        li.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            <span class="truncate flex-1">${file.name}</span>
+                            <span class="text-gray-500">${(file.size / 1024).toFixed(1)} KB</span>
+                        `;
+                        selectedFiles.appendChild(li);
+                    });
+                } else {
+                    fileList.classList.add('hidden');
+                    convertBtn.disabled = true;
+                }
+            }
+
+            // 转换按钮点击事件
+            convertBtn.addEventListener('click', function() {
+                alert('正在开发中：PDF转换功能即将上线');
+                // 模拟转换完成
+                setTimeout(() => {
+                    document.getElementById('previewContent').innerHTML = `
+                        <h1>示例转换结果</h1>
+                        <p>这是从PDF转换而来的Word文档内容。</p>
+                        <p>您可以在此进行简单的编辑操作。</p>
+                        <ul>
+                            <li>支持修改文字</li>
+                            <li>调整字体样式</li>
+                            <li>改变段落格式</li>
+                        </ul>
+                    `;
+                    editorToolbar.classList.remove('hidden');
+                }, 1500);
+            });
+
+            // 清空按钮点击事件
+            clearBtn.addEventListener('click', function() {
+                fileInput.value = '';
+                handleFiles();
+                document.getElementById('previewContent').innerHTML = '<p class="text-gray-500 italic">转换后将在此显示可编辑内容...</p>';
+                editorToolbar.classList.add('hidden');
+            });
+
+            // 编辑器工具栏功能
+            document.querySelectorAll('#editorToolbar button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const command = this.getAttribute('data-command');
+                    document.execCommand(command, false, null);
+                });
+            });
+
+            document.getElementById('fontFamily').addEventListener('change', function() {
+                document.execCommand('fontName', false, this.value);
+            });
+
+            document.getElementById('fontSize').addEventListener('change', function() {
+                document.execCommand('fontSize', false, this.value);
+            });
+        });
+    </script>
+</body>
+</html>
